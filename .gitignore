@@ -26,8 +26,5 @@ target
 /target
 
 
-# Added by cargo
-#
-# already existing elements were commented out
+Cargo.lock
 
-#/target
