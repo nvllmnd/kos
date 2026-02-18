@@ -17,20 +17,8 @@ use alloc::{
 /// A simple String type that works as a drop-in replacement for std::String that is
 /// Generic over the Allocator trait.
 ///
-/// If used with default template argument, then you should probably just
-/// use [std::String]/[alloc::String], as this is essentially the same thing, and
-/// defeats the purpose of originally creating this struct.
-///
-/// Ideally this is used with an [crate::arena::Arena], for instance:
-///
-/// ```rust
-/// use crate::arena::Arena;
-///
-/// let arena = Arena::with_init_capacity(1024);
-/// let s: StringBuf<Arena> = StringBuf::from_string_in("This string is located inside the arena!", arena.clone());
 ///
 ///
-/// ```
 ///
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]

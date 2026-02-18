@@ -7,12 +7,20 @@ use core::{
 use alloc::alloc::Allocator;
 
 #[repr(C, align(4096))]
+#[derive(Debug)]
 pub struct ArenaStatic<const SIZE: usize = 4096> {
     storage: UnsafeCell<[u8; SIZE]>,
     used: Cell<u32>,
 }
 
 impl<const S: usize> ArenaStatic<S> {
+    pub const fn new() -> Self {
+        Self {
+            storage: UnsafeCell::new([0; S]),
+            used: Cell::new(0),
+        }
+    }
+
     pub fn allocate_raw(&self, layout: core::alloc::Layout) -> *mut u8 {
         if self.is_full() || !self.has_space_for(layout) {
             return core::ptr::null_mut();
@@ -40,7 +48,7 @@ impl<const S: usize> ArenaStatic<S> {
     }
 
     pub const fn is_full(&self) -> bool {
-        self.used.get() >= S as u32
+        self.used.get() > S as u32
     }
 
     pub const fn has_space(&self) -> bool {
@@ -60,6 +68,12 @@ impl<const S: usize> ArenaStatic<S> {
     }
 }
 
+impl<const S: usize> Default for ArenaStatic<S> {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 unsafe impl GlobalAlloc for ArenaStatic {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {
         self.allocate_raw(layout)
@@ -68,7 +82,7 @@ unsafe impl GlobalAlloc for ArenaStatic {
     unsafe fn dealloc(&self, _ptr: *mut u8, _layout: core::alloc::Layout) {}
 }
 
-unsafe impl Allocator for ArenaStatic {
+unsafe impl<const S: usize> Allocator for ArenaStatic<S> {
     fn allocate(
         &self,
         layout: core::alloc::Layout,
@@ -86,4 +100,17 @@ unsafe impl Allocator for ArenaStatic {
     }
 
     unsafe fn deallocate(&self, ptr: NonNull<u8>, layout: core::alloc::Layout) {}
+}
+
+impl<const S: usize> Clone for ArenaStatic<S> {
+    fn clone(&self) -> Self {
+        let storage = UnsafeCell::new([0; S]);
+        let src = self.storage.get();
+        let dst = storage.get();
+        unsafe { core::ptr::copy_nonoverlapping(src, dst, S) };
+        Self {
+            storage,
+            used: self.used.clone(),
+        }
+    }
 }
