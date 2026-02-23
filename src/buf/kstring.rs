@@ -36,6 +36,10 @@ where
         self.buf.reserve(additional);
     }
 
+    pub const fn len(&self) -> usize {
+        self.buf.len()
+    }
+
     pub const fn new_in(alloc: A) -> Self {
         Self {
             buf: Vec::new_in(alloc),
