@@ -11,6 +11,7 @@ use core::{
 
 use alloc::{
     alloc::{Allocator, Global},
+    string::String,
     vec::Vec,
 };
 
@@ -22,11 +23,11 @@ use alloc::{
 ///
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StringBuf<A: Allocator = Global> {
+pub struct KString<A: Allocator = Global> {
     buf: Vec<u8, A>,
 }
 
-impl<A> StringBuf<A>
+impl<A> KString<A>
 where
     A: Allocator,
 {
@@ -57,7 +58,7 @@ where
         res
     }
 
-    pub fn from_string_in(s: &str, alloc: A) -> Self {
+    pub fn from_str_in(s: &str, alloc: A) -> Self {
         let buf = s.as_bytes().to_vec_in(alloc);
 
         Self { buf }
@@ -133,7 +134,7 @@ where
     }
 
     #[inline]
-    pub fn append_string(&mut self, other: StringBuf) {
+    pub fn append_string(&mut self, other: KString) {
         self.push(other.as_str());
     }
 
@@ -147,16 +148,16 @@ where
     }
 }
 
-impl StringBuf {
+impl KString {
     #[inline]
-    pub fn from_string(string: StringBuf) -> Self {
+    pub fn from_string(string: KString) -> Self {
         Self {
             buf: Vec::from(string.as_bytes()),
         }
     }
 }
 
-impl StringBuf {
+impl KString {
     pub const fn new() -> Self {
         Self::new_in(Global)
     }
@@ -167,14 +168,14 @@ impl StringBuf {
     }
 }
 
-impl Default for StringBuf {
+impl Default for KString {
     #[inline(always)]
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<A> Display for StringBuf<A>
+impl<A> Display for KString<A>
 where
     A: Allocator,
 {
@@ -184,7 +185,7 @@ where
     }
 }
 
-impl<A> Deref for StringBuf<A>
+impl<A> Deref for KString<A>
 where
     A: Allocator,
 {
@@ -196,7 +197,7 @@ where
     }
 }
 
-impl<A> DerefMut for StringBuf<A>
+impl<A> DerefMut for KString<A>
 where
     A: Allocator,
 {
@@ -206,7 +207,7 @@ where
     }
 }
 
-impl<A> PartialEq<str> for StringBuf<A>
+impl<A> PartialEq<str> for KString<A>
 where
     A: Allocator,
 {
@@ -216,7 +217,7 @@ where
     }
 }
 
-impl<A> PartialOrd<str> for StringBuf<A>
+impl<A> PartialOrd<str> for KString<A>
 where
     A: Allocator,
 {
@@ -227,18 +228,18 @@ where
     }
 }
 
-impl<A> Add for StringBuf<A>
+impl<A> Add for KString<A>
 where
     A: Allocator + Clone,
 {
-    type Output = StringBuf<A>;
+    type Output = KString<A>;
 
     fn add(self, rhs: Self) -> Self::Output {
         Self::concat(self, rhs)
     }
 }
 
-impl<A> AddAssign for StringBuf<A>
+impl<A> AddAssign for KString<A>
 where
     A: Allocator,
 {
@@ -247,12 +248,27 @@ where
     }
 }
 
-impl<A> Write for StringBuf<A>
+impl<A> Write for KString<A>
 where
     A: Allocator,
 {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         self.push(s);
         Ok(())
+    }
+}
+
+impl From<KString<Global>> for String {
+    fn from(value: KString<Global>) -> Self {
+        String::from_utf8(value.buf)
+            .expect("core::string::String should be created from a utf8-compatible KString!!")
+    }
+}
+
+impl From<String> for KString<Global> {
+    fn from(value: String) -> Self {
+        Self {
+            buf: value.into_bytes(),
+        }
     }
 }

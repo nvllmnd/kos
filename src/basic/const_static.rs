@@ -66,6 +66,12 @@ impl<const S: usize> ArenaStatic<S> {
     pub unsafe fn reset(&self) {
         self.used.set(0)
     }
+
+    #[inline]
+    pub fn clear(self) -> Self {
+        drop(self);
+        Self::new()
+    }
 }
 
 impl<const S: usize> Default for ArenaStatic<S> {
