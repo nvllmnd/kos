@@ -11,40 +11,43 @@ use core::{
 
 use alloc::{
     alloc::{Allocator, Global},
+    string::String,
     vec::Vec,
 };
 
 /// A simple String type that works as a drop-in replacement for std::String that is
 /// Generic over the Allocator trait.
 ///
-/// If used with default template argument, then you should probably just
-/// use [std::String]/[alloc::String], as this is essentially the same thing, and
-/// defeats the purpose of originally creating this struct.
-///
-/// Ideally this is used with an [crate::arena::Arena], for instance:
-///
-/// ```rust
-/// use crate::arena::Arena;
-///
-/// let arena = Arena::with_init_capacity(1024);
-/// let s: StringBuf<Arena> = StringBuf::from_string_in("This string is located inside the arena!", arena.clone());
 ///
 ///
-/// ```
 ///
 #[repr(transparent)]
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
-pub struct StringBuf<A: Allocator = Global> {
+pub struct KString<A: Allocator = Global> {
     buf: Vec<u8, A>,
 }
 
-impl<A> StringBuf<A>
+impl From<&str> for KString<Global> {
+    fn from(value: &str) -> Self {
+        Self::from_vec(value.as_bytes().to_vec())
+    }
+}
+
+impl<A> KString<A>
 where
     A: Allocator,
 {
     /// See [Vec::reserve] @param(1) should be in bytes
     pub fn reserve(&mut self, additional: usize) {
         self.buf.reserve(additional);
+    }
+
+    pub const fn len(&self) -> usize {
+        self.buf.len()
+    }
+
+    pub const fn is_empty(&self) -> bool {
+        self.buf.is_empty()
     }
 
     pub const fn new_in(alloc: A) -> Self {
@@ -69,7 +72,7 @@ where
         res
     }
 
-    pub fn from_string_in(s: &str, alloc: A) -> Self {
+    pub fn from_str_in(s: &str, alloc: A) -> Self {
         let buf = s.as_bytes().to_vec_in(alloc);
 
         Self { buf }
@@ -98,9 +101,7 @@ where
     #[inline]
     pub const fn utf8(&self) -> &str {
         let Ok(res) = self.try_utf8() else {
-            panic!(
-                "bytes in StringBuf should be utf8 compatible in order to call StringBuf::utf8()"
-            )
+            panic!("bytes in KString should be utf8 compatible in order to call KString::utf8()")
         };
         res
     }
@@ -112,7 +113,7 @@ where
     pub const fn utf8_mut(&mut self) -> &mut str {
         let Ok(res) = self.try_utf8_mut() else {
             panic!(
-                "bytes in StringBuf should be utf8 compatible in order to call StringBuf::utf8_mut()"
+                "bytes in KString should be utf8 compatible in order to call KString::utf8_mut()"
             )
         };
         res
@@ -137,7 +138,7 @@ where
         self.buf.extend_from_slice(bytes);
     }
 
-    /// Same as [StringBuf::push], but also appends parameter delim immediately after
+    /// Same as [KString::push], but also appends parameter delim immediately after
     /// pushing string
     pub fn push_delim(&mut self, string: &str, delim: char) {
         self.push(string);
@@ -145,12 +146,18 @@ where
     }
 
     #[inline]
-    pub fn append_string(&mut self, other: StringBuf) {
+    pub fn append_string(&mut self, other: KString) {
         self.push(other.as_str());
     }
 
+    #[inline]
     pub fn as_str(&self) -> &str {
         core::str::from_utf8(self.buf.as_ref()).expect("Strings must be UTF-8!")
+    }
+
+    #[inline]
+    pub fn as_str_mut(&mut self) -> &mut str {
+        core::str::from_utf8_mut(self.buf.as_mut()).expect("Strings should be UTF-8!")
     }
 
     #[inline]
@@ -159,16 +166,16 @@ where
     }
 }
 
-impl StringBuf {
+impl KString {
     #[inline]
-    pub fn from_string(string: StringBuf) -> Self {
+    pub fn from_string(string: KString) -> Self {
         Self {
             buf: Vec::from(string.as_bytes()),
         }
     }
 }
 
-impl StringBuf {
+impl KString {
     pub const fn new() -> Self {
         Self::new_in(Global)
     }
@@ -179,14 +186,14 @@ impl StringBuf {
     }
 }
 
-impl Default for StringBuf {
+impl Default for KString {
     #[inline(always)]
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<A> Display for StringBuf<A>
+impl<A> Display for KString<A>
 where
     A: Allocator,
 {
@@ -196,7 +203,7 @@ where
     }
 }
 
-impl<A> Deref for StringBuf<A>
+impl<A> Deref for KString<A>
 where
     A: Allocator,
 {
@@ -208,7 +215,7 @@ where
     }
 }
 
-impl<A> DerefMut for StringBuf<A>
+impl<A> DerefMut for KString<A>
 where
     A: Allocator,
 {
@@ -218,7 +225,7 @@ where
     }
 }
 
-impl<A> PartialEq<str> for StringBuf<A>
+impl<A> PartialEq<str> for KString<A>
 where
     A: Allocator,
 {
@@ -228,7 +235,7 @@ where
     }
 }
 
-impl<A> PartialOrd<str> for StringBuf<A>
+impl<A> PartialOrd<str> for KString<A>
 where
     A: Allocator,
 {
@@ -239,18 +246,18 @@ where
     }
 }
 
-impl<A> Add for StringBuf<A>
+impl<A> Add for KString<A>
 where
     A: Allocator + Clone,
 {
-    type Output = StringBuf<A>;
+    type Output = KString<A>;
 
     fn add(self, rhs: Self) -> Self::Output {
         Self::concat(self, rhs)
     }
 }
 
-impl<A> AddAssign for StringBuf<A>
+impl<A> AddAssign for KString<A>
 where
     A: Allocator,
 {
@@ -259,12 +266,27 @@ where
     }
 }
 
-impl<A> Write for StringBuf<A>
+impl<A> Write for KString<A>
 where
     A: Allocator,
 {
     fn write_str(&mut self, s: &str) -> core::fmt::Result {
         self.push(s);
         Ok(())
+    }
+}
+
+impl From<KString<Global>> for String {
+    fn from(value: KString<Global>) -> Self {
+        String::from_utf8(value.buf)
+            .expect("core::string::String should be created from a utf8-compatible KString!!")
+    }
+}
+
+impl From<String> for KString<Global> {
+    fn from(value: String) -> Self {
+        Self {
+            buf: value.into_bytes(),
+        }
     }
 }
