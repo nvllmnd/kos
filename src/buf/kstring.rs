@@ -27,6 +27,12 @@ pub struct KString<A: Allocator = Global> {
     buf: Vec<u8, A>,
 }
 
+impl From<&str> for KString<Global> {
+    fn from(value: &str) -> Self {
+        Self::from_vec(value.as_bytes().to_vec())
+    }
+}
+
 impl<A> KString<A>
 where
     A: Allocator,
@@ -38,6 +44,10 @@ where
 
     pub const fn len(&self) -> usize {
         self.buf.len()
+    }
+
+    pub const fn is_empty(&self) -> bool {
+        self.buf.is_empty()
     }
 
     pub const fn new_in(alloc: A) -> Self {
@@ -91,9 +101,7 @@ where
     #[inline]
     pub const fn utf8(&self) -> &str {
         let Ok(res) = self.try_utf8() else {
-            panic!(
-                "bytes in StringBuf should be utf8 compatible in order to call StringBuf::utf8()"
-            )
+            panic!("bytes in KString should be utf8 compatible in order to call KString::utf8()")
         };
         res
     }
@@ -105,7 +113,7 @@ where
     pub const fn utf8_mut(&mut self) -> &mut str {
         let Ok(res) = self.try_utf8_mut() else {
             panic!(
-                "bytes in StringBuf should be utf8 compatible in order to call StringBuf::utf8_mut()"
+                "bytes in KString should be utf8 compatible in order to call KString::utf8_mut()"
             )
         };
         res
@@ -130,7 +138,7 @@ where
         self.buf.extend_from_slice(bytes);
     }
 
-    /// Same as [StringBuf::push], but also appends parameter delim immediately after
+    /// Same as [KString::push], but also appends parameter delim immediately after
     /// pushing string
     pub fn push_delim(&mut self, string: &str, delim: char) {
         self.push(string);
@@ -142,8 +150,14 @@ where
         self.push(other.as_str());
     }
 
+    #[inline]
     pub fn as_str(&self) -> &str {
         core::str::from_utf8(self.buf.as_ref()).expect("Strings must be UTF-8!")
+    }
+
+    #[inline]
+    pub fn as_str_mut(&mut self) -> &mut str {
+        core::str::from_utf8_mut(self.buf.as_mut()).expect("Strings should be UTF-8!")
     }
 
     #[inline]

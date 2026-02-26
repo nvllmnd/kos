@@ -9,8 +9,6 @@ pub mod basic;
 pub mod buf;
 pub mod comp;
 pub(crate) mod hash;
-pub mod malloc;
-pub mod mem;
 
 #[inline]
 pub fn clamp<T>(lower: T, val: T, higher: T) -> T
@@ -30,11 +28,11 @@ where
     assert!(end < dst.len());
     let dst = &mut dst[i..=end];
 
-    copy_slice_into(dst, src);
+    copy_slice_into(src, dst);
 }
 
 #[inline]
-pub fn copy_slice_into<T>(dst: &mut [T], src: &[T])
+pub fn copy_slice_into<T>(src: &[T], dst: &mut [T])
 where
     T: Copy,
 {
@@ -43,7 +41,7 @@ where
 }
 
 #[inline]
-pub fn clone_slice_into<T>(dst: &mut [T], src: &[T])
+pub fn clone_slice_into<T>(src: &[T], dst: &mut [T])
 where
     T: Clone,
 {
@@ -78,6 +76,6 @@ where
     T: Copy,
 {
     let mut arr = [default_val; S];
-    copy_slice_into(&mut arr, sl);
+    copy_slice_into(sl, &mut arr);
     arr
 }

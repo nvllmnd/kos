@@ -13,13 +13,13 @@ pub mod fnv {
 
     const fn hasher(acc: u64, c: &u8) -> u64 {
         let v = acc ^ (*c) as u64;
-        v * PRIME64
+        v.wrapping_mul(PRIME64)
     }
     /// hashes a &[str] into a u64. for 32 bit version, use [hash32_string]
     /// for a non-const version that uses iterators, use [hash_string]
-    pub const fn hash_string_ct(s: &str) -> u64 {
+    pub const fn hash_string_const(s: &str) -> u64 {
         let bs = s.as_bytes();
-        hash_bytes_ct(bs)
+        hash_bytes_const(bs)
     }
 
     pub fn hash_bytes(bytes: &[u8]) -> u64 {
@@ -30,8 +30,8 @@ pub mod fnv {
         bytes.iter().fold(OFFSET64, hasher)
     }
 
-    /// same as [hash_bytes], but calculates hash at compile time
-    pub const fn hash_bytes_ct(bytes: &[u8]) -> u64 {
+    /// same as [hash_bytes], but const
+    pub const fn hash_bytes_const(bytes: &[u8]) -> u64 {
         if bytes.is_empty() {
             return 0;
         }
@@ -44,8 +44,8 @@ pub mod fnv {
             if i < len {
                 let c = bytes[i] as u64;
                 hash = hash ^ c;
-                hash = hash * PRIME64;
-                i = i + 1;
+                hash = hash.wrapping_mul(PRIME64);
+                i += 1;
             } else {
                 break hash;
             }

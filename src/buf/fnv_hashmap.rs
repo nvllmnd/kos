@@ -5,7 +5,7 @@ use alloc::{
     vec::{self, Vec},
 };
 
-use crate::{buf::kstring::KString, copy_slice_into};
+use crate::{buf::kstring::KString, copy_slice_into, hash::fnv::hash_string_const};
 
 const INLINE_KEY_LEN: usize = 23;
 
@@ -29,7 +29,7 @@ impl InlineKey {
             None
         } else {
             let mut buf = [0u8; INLINE_KEY_LEN];
-            copy_slice_into(&mut buf, s.as_bytes());
+            copy_slice_into(s.as_bytes(), &mut buf);
             let s = Self {
                 len: s.len() as u8,
                 buf,
@@ -87,7 +87,7 @@ where
 
     #[inline]
     pub fn hash64(&self) -> u64 {
-        crate::hash::fnv::hash_string_ct(self.as_str())
+        crate::hash::fnv::hash_string_const(self.as_str())
     }
 
     #[inline]
@@ -164,14 +164,19 @@ where
 }
 
 #[derive(Debug, Clone)]
-#[repr(transparent)]
 pub struct FnvHashMap<V, A: Allocator> {
+    // TODO: Right now we are using [Option] to empulate capacity without having to deal with unsafe or [MaybeUninit],
+    // so this could be a possible future optimization for a future refactor
     buf: Vec<Option<KeyValue<V, A>>, A>,
+    len: usize,
 }
 
 impl<V> Default for FnvHashMap<V, Global> {
     fn default() -> Self {
-        Self { buf: Vec::new() }
+        Self {
+            buf: Vec::new(),
+            len: 0,
+        }
     }
 }
 
@@ -182,21 +187,63 @@ where
     pub const fn new_in(alloc: A) -> Self {
         Self {
             buf: Vec::new_in(alloc),
+            len: 0,
         }
     }
 
-    pub const fn len(&self) -> usize {
+    pub const fn capacity(&self) -> usize {
         self.buf.len()
+    }
+
+    pub const fn len(&self) -> usize {
+        self.len
     }
 
     pub fn with_size_in(size: usize, alloc: A) -> Self {
         let mut buf = Vec::with_capacity_in(size, alloc);
         buf.resize_with(size, || None);
-        Self { buf }
+        Self { buf, len: 0 }
     }
 
-    pub fn insert(&mut self, key: &str, value: V) {
-        todo!("Implement FnvHashMap::insert method")
+    const fn load_factor(&self) -> f64 {
+        (self.len() as f64) / (self.capacity() as f64)
+    }
+
+    pub fn insert(&mut self, key: &str, value: V)
+    where
+        A: Copy,
+    {
+        if self.capacity() == 0 {
+            self.buf.resize_with(24, || None);
+        }
+        if self.load_factor() >= 0.75 {
+            let cap = self.capacity() * 2;
+            let mut next = Vec::with_capacity_in(cap, *self.buf.allocator());
+            next.resize_with(cap, || None);
+
+            for x in self.buf.drain(..) {
+                let Some(kv) = x else {
+                    continue;
+                };
+                let i = hash_string_const(kv.key_str());
+                let i = i % next.capacity() as u64;
+                next[i as usize] = Some(kv);
+            }
+
+            self.buf = next;
+        }
+        let k = Key::from_str_in(key, *self.buf.allocator());
+        let i = k.hash_index(self.capacity());
+        // let mut elem = &mut self.buf[i];
+        // while elem.is_some() {
+
+        // }
+
+        self.buf[i] = Some(KeyValue::new(
+            Key::from_str_in(key, *self.buf.allocator()),
+            value,
+        ));
+        self.len += 1;
     }
 
     pub fn delete(&mut self, key: &str) -> V {
@@ -204,7 +251,16 @@ where
     }
 
     pub fn try_get(&self, key: &str) -> Option<&V> {
-        todo!("Implement FnvHashMap::try_get")
+        if self.capacity() == 0 {
+            return None;
+        }
+
+        let i = hash_string_const(key);
+        let i = i as usize % self.capacity();
+        let Some(elem) = &self.buf[i] else {
+            return None;
+        };
+        Some(&elem.val)
     }
 
     pub fn get(&self, key: &str) -> &V {
@@ -222,7 +278,7 @@ where
     }
 
     pub fn has(&self, key: &str) -> bool {
-        todo!("Impement FnvHashMap::has method")
+        self.try_get(key).is_some()
     }
 
     pub const fn key_iter<'a>(&'a self) -> KeyIter<'a, A> {
@@ -246,8 +302,26 @@ where
     }
 }
 
+mod tests {
+    use crate::basic::const_static::ArenaStatic;
+
+    use super::*;
+
+    #[test]
+    fn can_insert() {
+        let g = Global;
+        let mut map = FnvHashMap::new_in(g);
+        map.insert("asdf", 50);
+        map.insert("1234", 500);
+
+        let c = ArenaStatic::<4096>::new();
+        let mut m2 = FnvHashMap::new_in(c.by_ref());
+        m2.insert("asdf", "1234");
+    }
+}
+
 #[derive(Debug, Clone, Copy)]
-pub struct KeyIter<'a, A: Allocator> {
+pub struct KeyIter<'a, A: Allocator + 'a> {
     buf: NonNull<[Option<KeyValue<(), A>>]>,
     bi: usize,
     _pd: PhantomData<&'a [&'a str]>,
@@ -281,7 +355,7 @@ where
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ValueIter<'a, V, A: Allocator> {
+pub struct ValueIter<'a, V, A: Allocator + 'a> {
     buf: NonNull<[Option<KeyValue<V, A>>]>,
     bi: usize,
     _pd: PhantomData<&'a [&'a V]>,
@@ -319,6 +393,9 @@ where
 
 impl<V> FnvHashMap<V, Global> {
     pub const fn new() -> Self {
-        Self { buf: Vec::new() }
+        Self {
+            buf: Vec::new(),
+            len: 0,
+        }
     }
 }
