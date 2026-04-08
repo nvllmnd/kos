@@ -5,3 +5,8 @@ edition = "2024"
 
 [dependencies]
 anyhow = { version = "1.0.100", default-features = false }
+hashbrown = { version = "0.16.1", default-features = false, features = ["core", "alloc"] }
+
+[features]
+default = ["hashbrown_hashmaps"]
+hashbrown_hashmaps = []

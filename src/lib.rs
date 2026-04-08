@@ -1,3 +1,36 @@
+//!
+//! This crate contains types and functions for use as custom allocators that all
+//! at least implement the [alloc::alloc::Allocator] trait.
+//! (some also implement the [alloc::alloc::GlobalAlloc] trait as well, but that is only helpful if that type also implements [core::marker::Sync],
+//! which is something I need to tidy up and make consistent)
+//!
+//! [alloc::string::String] is not generic over [alloc::alloc::Allocator], so you can
+//! use [crate::buf::kstring::KString] for creating strings that use an
+//! allocator different from the [alloc::alloc::Global] allocator ([global_allocator])
+//!
+//! The [crate::comp] module contains allocators that can be composed with other allocators, allowing you
+//! to plug in your own implementations of the [alloc::alloc::Allocator] trait
+//!
+//!
+//!
+//! #### On why I did not write my own HashMap/HashSet types
+//!
+//! - Here we are re-exporting hashmaps from the [hashbrown] crate, as that
+//! is what the rust [std] library uses internally anyway (as of right now on 04/08/2026 in nightly Rust).
+//!
+//! - The [hashbrown] crate developers were so very nice as to make all their associative array types generic over
+//! the [alloc::alloc::Allocator] trait, so I would really be doing a lot of double work by implementing my own
+//! hashmap and hashset types on my own.
+//!
+//! - Finally, from a breif, surface level look at the hashbrown crate, it looks like it lets you plug in
+//! your own custom hashers and all that. It provides a low-level [hashbrown::HashTable] interface, which im guessing one could do
+//! a lot with to tweak the behavior of the hash-map/set//!
+//!
+//!
+//! All that being said, I may eventually write my own as a fun-ish exercise, but I will probably end up
+//! writing it in C++, C, Zig or something, as its apparently not so trivial to do so efficiently in Rust, because of lifetimes and all
+//! that good stuff. emulating a [alloc::string::String] that is generic over [alloc::alloc::Allocator] is hard enough! =P
+//!
 #![no_std]
 #![feature(allocator_api)]
 
@@ -9,6 +42,19 @@ pub mod basic;
 pub mod buf;
 pub mod comp;
 pub(crate) mod hash;
+
+//
+#[cfg(feature = "hashbrown_hashmaps")]
+pub use hashbrown::HashMap as Map;
+
+#[cfg(feature = "hashbrown_hashmaps")]
+pub use hashbrown::HashSet as Set;
+
+#[cfg(feature = "hashbrown_hashmaps")]
+pub use hashbrown::HashTable as Table;
+
+#[cfg(feature = "hashbrown_hashmaps")]
+pub use hashbrown::*;
 
 #[inline]
 pub fn clamp<T>(lower: T, val: T, higher: T) -> T
