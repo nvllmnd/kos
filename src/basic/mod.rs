@@ -18,5 +18,12 @@
 //!
 //! TODO: Create a 'ArenaStaticSync' type that does impl [core::marker::Sync] and can therefore be used as a [global_allocator]
 //!
+//!
+//! [sync::ArenaSync]
+//!
+//! A version of [const_static::ArenaStatic] that is safe to share borrowed references to it across threads and can
+//! be declared as [global_allocator] to it implementing [core::marker::Sync]
+//!
 
 pub mod const_static;
+pub mod sync;
