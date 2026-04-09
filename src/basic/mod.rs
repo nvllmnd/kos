@@ -26,4 +26,6 @@
 //!
 
 pub mod const_static;
+pub mod const_sync;
 pub mod sync;
+pub mod slot;

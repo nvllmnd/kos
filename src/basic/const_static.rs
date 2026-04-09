@@ -12,7 +12,6 @@ pub struct ArenaStatic<const SIZE: usize = 4096> {
     storage: UnsafeCell<[u8; SIZE]>,
     used: Cell<u32>,
 }
-
 impl<const S: usize> ArenaStatic<S> {
     pub const fn new() -> Self {
         Self {
