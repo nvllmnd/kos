@@ -20,6 +20,8 @@ pub struct ArenaStaticSync<const SIZE: usize> {
     used: AtomicUsize,
 }
 
+static mut TEST: [u8; 255] = [0u8; 255];
+
 impl<const S: usize> ArenaStaticSync<S> {
     pub const fn new() -> Self {
         Self {
@@ -30,8 +32,6 @@ impl<const S: usize> ArenaStaticSync<S> {
 
     pub fn allocate_raw(&self, layout: core::alloc::Layout) -> *mut u8 {
         let used = self.used();
-        // .used
-        // .fetch_add(layout.size(), core::sync::atomic::Ordering::Relaxed);
         let mem = self.mem.get().cast::<u8>();
         let alloc_ptr = unsafe { mem.add(used) };
         let offset = mem.align_offset(layout.align());
@@ -168,18 +168,34 @@ impl<const S: usize> SlottedAllocator for &ArenaStaticSync<S> {
 
 #[cfg(test)]
 mod tests {
-    use alloc::vec::Vec;
+
+    use alloc::{alloc::Global, vec::Vec};
 
     use super::*;
 
-    #[global_allocator]
-    static G: ArenaStaticSync<255> = ArenaStaticSync::<255>::new();
+    // FIXME: WHAT THE FUCK WHY DOESNT THIS WORK IT FUCKING SEGFAULTS IF I UNCOMMENT THE BELOW 2 LINES AND IM ABOUT TO FUCKING
+    // RIP MY FUCKING HAIR OUT WHAT THAT FUCK IT WORKS FINE AS A LOCAL FUCKING ALLOCATOR WHY THE FUCK DOESNT IT WORK AS A GLOBAL ALLOCATOR
+    // IT.
+    // MAKES.
+    // NO.
+    // FUCKING.
+    // SENSE
+    // >AWSEG:SHDJGBP:OJDAGB:POJKAGP:OJUAGPIJAWEPOIUQHh;0
+    // #[global_allocator]
+    // static GLOBAL: ArenaStaticSync<4096> = ArenaStaticSync::<4096>::new();
 
+    // WHY  THE FUCK DOES THIS WORK OMFG UHGHGHGHHGHGHGHHGH:HGH
+    // BUT IT WONT WORK, CALLING THE SAME FUCKING METHODS, INITIALIING THE SAME FUCKING WAY
+    // BUT NO. FUCK ME. I CANT HAVE THIS BE A GLOBAL ALLOCATOR. WHY. FUCKING WHY. IM SO FUCKING MAD
     #[test]
-    fn arena_works_as_global_allocator() {
-        let mut v = Vec::new();
-        v.push(100);
+    fn arena_works_as_local_allocator() {
+        let mut v2 = Vec::new_in(Global);
+        v2.push(1.0);
+        assert_eq!(v2[0], 1.0);
 
+        let arena = ArenaStaticSync::<4096>::new();
+        let mut v = Vec::new_in(arena.by_ref());
+        v.push(100);
         assert_eq!(v[0], 100);
     }
 }

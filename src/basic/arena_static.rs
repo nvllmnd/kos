@@ -6,6 +6,11 @@ use core::{
 
 use alloc::alloc::Allocator;
 
+#[macro_export]
+macro_rules! arena_static {
+    ($size:literal) => {{ $crate::basic::const_static::ArenaStatic::<$size>::new() }};
+}
+
 #[repr(C, align(4096))]
 #[derive(Debug)]
 pub struct ArenaStatic<const SIZE: usize = 4096> {
@@ -73,11 +78,17 @@ impl<const S: usize> ArenaStatic<S> {
     }
 }
 
-impl<const S: usize> Default for ArenaStatic<S> {
+impl Default for ArenaStatic {
     fn default() -> Self {
-        Self::new()
+        ArenaStatic::<4096>::new()
     }
 }
+
+// impl<const S: usize> Default for ArenaStatic<S> {
+//     fn default() -> Self {
+//         Self::new()
+//     }
+// }
 
 unsafe impl GlobalAlloc for ArenaStatic {
     unsafe fn alloc(&self, layout: core::alloc::Layout) -> *mut u8 {

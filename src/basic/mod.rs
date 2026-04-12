@@ -25,7 +25,8 @@
 //! be declared as [global_allocator] to it implementing [core::marker::Sync]
 //!
 
-pub mod const_static;
-pub mod const_sync;
-pub mod sync;
+pub mod arena_static;
 pub mod slot;
+pub mod slot_ptr;
+pub mod static_sync;
+pub mod sync;
