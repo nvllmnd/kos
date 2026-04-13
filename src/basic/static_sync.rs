@@ -20,8 +20,6 @@ pub struct ArenaStaticSync<const SIZE: usize> {
     used: AtomicUsize,
 }
 
-static mut TEST: [u8; 255] = [0u8; 255];
-
 impl<const S: usize> ArenaStaticSync<S> {
     pub const fn new() -> Self {
         Self {
@@ -173,20 +171,15 @@ mod tests {
 
     use super::*;
 
-    // FIXME: WHAT THE FUCK WHY DOESNT THIS WORK IT FUCKING SEGFAULTS IF I UNCOMMENT THE BELOW 2 LINES AND IM ABOUT TO FUCKING
-    // RIP MY FUCKING HAIR OUT WHAT THAT FUCK IT WORKS FINE AS A LOCAL FUCKING ALLOCATOR WHY THE FUCK DOESNT IT WORK AS A GLOBAL ALLOCATOR
-    // IT.
-    // MAKES.
-    // NO.
-    // FUCKING.
-    // SENSE
-    // >AWSEG:SHDJGBP:OJDAGB:POJKAGP:OJUAGPIJAWEPOIUQHh;0
+    // Okay i figured it out. I think the reason the below commented out lines were not working is either
+    // the way i have this project setup, or you just simply cant change the global allocator inside tests.
+    //
+    // So yeah no biggie. I added these 2 same lines to a regular Rust executable and it works
+    // with no issues
+    //
     // #[global_allocator]
-    // static GLOBAL: ArenaStaticSync<4096> = ArenaStaticSync::<4096>::new();
+    // static G: ArenaStaticSync<255> = ArenaStaticSync::<255>::new();
 
-    // WHY  THE FUCK DOES THIS WORK OMFG UHGHGHGHHGHGHGHHGH:HGH
-    // BUT IT WONT WORK, CALLING THE SAME FUCKING METHODS, INITIALIING THE SAME FUCKING WAY
-    // BUT NO. FUCK ME. I CANT HAVE THIS BE A GLOBAL ALLOCATOR. WHY. FUCKING WHY. IM SO FUCKING MAD
     #[test]
     fn arena_works_as_local_allocator() {
         let mut v2 = Vec::new_in(Global);
