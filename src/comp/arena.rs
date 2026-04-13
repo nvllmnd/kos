@@ -11,7 +11,7 @@ use core::{
 use alloc::alloc::Allocator;
 use anyhow::bail;
 
-use crate::basic::const_static::ArenaStatic;
+use crate::basic::arena_static::ArenaStatic;
 
 #[derive(Debug, Clone)]
 pub struct Arena<A: Allocator> {
@@ -177,8 +177,9 @@ mod tests {
 
     use alloc::{alloc::Global, boxed::Box, rc::Rc, vec::Vec};
 
+    use crate::buf::kstring::KString;
+
     use super::*;
-    use crate::{basic::const_static::ArenaStatic, buf::kstring::KString};
 
     #[test]
     fn can_allocate_static() -> anyhow::Result<()> {

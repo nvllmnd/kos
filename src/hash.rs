@@ -1,3 +1,6 @@
+//! This module provides some functions to calculate the FNV-1a hash for
+//! 32 and 64 bit numbers intended to be used by [crate] crate internally
+
 pub mod fnv {
     use core::hash::Hasher;
 
